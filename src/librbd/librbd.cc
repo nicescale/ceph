@@ -322,6 +322,15 @@ namespace librbd {
     return r;
   }
 
+  int Image::update_features(uint64_t feature, bool enabled)
+  {
+    ImageCtx *ictx = reinterpret_cast<ImageCtx *>(ctx);
+    tracepoint(librbd, update_features_enter, ictx, feature, enabled);
+    int r = librbd::update_features(ictx, feature, enabled);
+    tracepoint(librbd, update_features_exit, r);
+    return r;
+  }
+
   uint64_t Image::get_stripe_unit() const
   {
     ImageCtx *ictx = (ImageCtx *)ctx;
@@ -1156,6 +1165,17 @@ extern "C" int rbd_get_features(rbd_image_t image, uint64_t *features)
   tracepoint(librbd, get_features_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only);
   int r = librbd::get_features(ictx, features);
   tracepoint(librbd, get_features_exit, r, *features);
+  return r;
+}
+
+extern "C" int rbd_update_features(rbd_image_t image, uint64_t feature,
+                                  uint8_t enabled)
+{
+  librbd::ImageCtx *ictx = reinterpret_cast<librbd::ImageCtx *>(image);
+  bool feature_enabled = enabled != 0;
+  tracepoint(librbd, update_features_enter, ictx, feature, feature_enabled);
+  int r = librbd::update_features(ictx, feature, feature_enabled);
+  tracepoint(librbd, update_features_exit, r);
   return r;
 }
 
