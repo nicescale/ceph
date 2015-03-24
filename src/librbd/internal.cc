@@ -582,6 +582,7 @@ int remove_object_map(ImageCtx *ictx) {
 
   int snap_remove(ImageCtx *ictx, const char *snap_name, bool notify)
   {
+    assert(ictx->owner_lock.is_locked());
     ldout(ictx->cct, 20) << "snap_remove " << ictx << " " << snap_name << dendl;
 
     if (ictx->read_only)
@@ -591,18 +592,43 @@ int remove_object_map(ImageCtx *ictx) {
     if (r < 0)
       return r;
 
-    RWLock::RLocker l(ictx->md_lock);
+    {
+      RWLock::RLocker snap_locker(ictx->snap_lock);
+      if (ictx->get_snap_id(snap_name) == CEPH_NOSNAP) {
+        return -ENOENT;
+      }
+    }
+
+    while (ictx->image_watcher->is_lock_supported()) {
+      r = prepare_image_update(ictx);
+      if (r < 0) {
+	return -EROFS;
+      } else if (ictx->image_watcher->is_lock_owner()) {
+	break;
+      }
+
+      r = ictx->image_watcher->notify_snap_remove(snap_name);
+      if (r == -ENOENT) {
+        return 0;
+      } else if (r != -ETIMEDOUT) {
+	return r;
+      }
+      ldout(ictx->cct, 5) << "snap_remove timed out notifying lock owner"
+                          << dendl;
+    }
+
+    RWLock::RLocker md_locker(ictx->md_lock);
     snap_t snap_id;
 
     {
-      // block for purposes of auto-destruction of l2 on early return
-      RWLock::RLocker l2(ictx->snap_lock);
+      // block for purposes of auto-destruction of snap_locker on early return
+      RWLock::RLocker snap_locker(ictx->snap_lock);
       snap_id = ictx->get_snap_id(snap_name);
       if (snap_id == CEPH_NOSNAP)
 	return -ENOENT;
 
       parent_spec our_pspec;
-      RWLock::RLocker l3(ictx->parent_lock);
+      RWLock::RLocker parent_locker(ictx->parent_lock);
       r = ictx->get_parent_spec(snap_id, &our_pspec);
       if (r < 0) {
 	lderr(ictx->cct) << "snap_remove: can't get parent spec" << dendl;
@@ -611,13 +637,13 @@ int remove_object_map(ImageCtx *ictx) {
 
       if (ictx->parent_md.spec != our_pspec &&
 	  (scan_for_parents(ictx, our_pspec, snap_id) == -ENOENT)) {
-	  r = cls_client::remove_child(&ictx->md_ctx, RBD_CHILDREN,
-				       our_pspec, ictx->id);
-	  if (r < 0 && r != -ENOENT) {
-            lderr(ictx->cct) << "snap_remove: failed to deregister from parent "
-                                "image" << dendl;
-	    return r;
-          }
+        r = cls_client::remove_child(&ictx->md_ctx, RBD_CHILDREN,
+				     our_pspec, ictx->id);
+	if (r < 0 && r != -ENOENT) {
+          lderr(ictx->cct) << "snap_remove: failed to deregister from parent "
+                           << "image" << dendl;
+	  return r;
+        }
       }
     }
 
@@ -636,7 +662,9 @@ int remove_object_map(ImageCtx *ictx) {
     if (r < 0)
       return r;
 
-    notify_change(ictx->md_ctx, ictx->header_oid, ictx);
+    if (notify) {
+      notify_change(ictx->md_ctx, ictx->header_oid, ictx);
+    }
 
     ictx->perfcounter->inc(l_librbd_snap_remove);
     return 0;
