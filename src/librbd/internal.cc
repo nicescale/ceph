@@ -580,7 +580,7 @@ int remove_object_map(ImageCtx *ictx) {
     return 0;
   }
 
-  int snap_remove(ImageCtx *ictx, const char *snap_name)
+  int snap_remove(ImageCtx *ictx, const char *snap_name, bool notify)
   {
     ldout(ictx->cct, 20) << "snap_remove " << ictx << " " << snap_name << dendl;
 

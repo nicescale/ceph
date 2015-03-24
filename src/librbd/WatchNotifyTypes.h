@@ -81,7 +81,8 @@ enum NotifyOp {
   NOTIFY_OP_ASYNC_COMPLETE = 5,
   NOTIFY_OP_FLATTEN        = 6,
   NOTIFY_OP_RESIZE         = 7,
-  NOTIFY_OP_SNAP_CREATE    = 8
+  NOTIFY_OP_SNAP_CREATE    = 8,
+  NOTIFY_OP_SNAP_REMOVE    = 9
 };
 
 struct AcquiredLockPayload {
@@ -179,7 +180,18 @@ struct SnapCreatePayload {
   SnapCreatePayload(const std::string &name) : snap_name(name) {}
 
   std::string snap_name;
- 
+
+  void encode(bufferlist &bl) const;
+  void decode(__u8 version, bufferlist::iterator &iter);
+  void dump(Formatter *f) const;
+};
+
+struct SnapRemovePayload {
+  SnapRemovePayload() {}
+  SnapRemovePayload(const std::string &name) : snap_name(name) {}
+
+  std::string snap_name;
+
   void encode(bufferlist &bl) const;
   void decode(__u8 version, bufferlist::iterator &iter);
   void dump(Formatter *f) const;
@@ -200,6 +212,7 @@ typedef boost::variant<AcquiredLockPayload,
                  FlattenPayload,
                  ResizePayload,
                  SnapCreatePayload,
+                 SnapRemovePayload,
                  UnknownPayload> Payload;
 
 struct NotifyMessage {

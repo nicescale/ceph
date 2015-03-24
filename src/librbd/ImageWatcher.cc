@@ -485,6 +485,16 @@ int ImageWatcher::notify_snap_create(const std::string &snap_name) {
   return notify_lock_owner(bl);
 }
 
+int ImageWatcher::notify_snap_remove(const std::string &snap_name) {
+  assert(m_image_ctx.owner_lock.is_locked());
+  assert(!is_lock_owner());
+
+  bufferlist bl;
+  ::encode(NotifyMessage(SnapRemovePayload(snap_name)), bl);
+
+  return notify_lock_owner(bl);
+}
+
 void ImageWatcher::notify_header_update(librados::IoCtx &io_ctx,
 				        const std::string &oid)
 {
@@ -894,6 +904,28 @@ void ImageWatcher::handle_payload(const SnapCreatePayload &payload,
     ldout(m_image_ctx.cct, 10) << "remote snap_create request: "
 			       << payload.snap_name << dendl;
     int r = librbd::snap_create(&m_image_ctx, payload.snap_name.c_str(), false);
+
+    ::encode(ResponseMessage(r), *out);
+    if (r == 0) {
+      // increment now to avoid race due to the delayed notification
+      Mutex::Locker lictx(m_image_ctx.refresh_lock);
+      ++m_image_ctx.refresh_seq;
+
+      // cannot notify within a notificiation
+      FunctionContext *ctx = new FunctionContext(
+	boost::bind(&ImageWatcher::finalize_header_update, this));
+      m_task_finisher->queue(TASK_CODE_HEADER_UPDATE, ctx);
+    }
+  }
+}
+
+void ImageWatcher::handle_payload(const SnapRemovePayload &payload,
+				  bufferlist *out) {
+  RWLock::RLocker l(m_image_ctx.owner_lock);
+  if (m_lock_owner_state == LOCK_OWNER_STATE_LOCKED) {
+    ldout(m_image_ctx.cct, 10) << "remote snap_remove request: "
+			       << payload.snap_name << dendl;
+    int r = librbd::snap_remove(&m_image_ctx, payload.snap_name.c_str(), false);
 
     ::encode(ResponseMessage(r), *out);
     if (r == 0) {
