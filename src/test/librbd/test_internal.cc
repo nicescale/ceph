@@ -19,13 +19,15 @@ public:
   typedef std::vector<std::pair<std::string, bool> > Snaps;
 
   virtual void TearDown() {
+    unlock_image();
     for (Snaps::iterator iter = m_snaps.begin(); iter != m_snaps.end(); ++iter) {
       librbd::ImageCtx *ictx;
       EXPECT_EQ(0, open_image(m_image_name, &ictx));
       if (iter->second) {
 	EXPECT_EQ(0, librbd::snap_unprotect(ictx, iter->first.c_str()));
       }
-      EXPECT_EQ(0, librbd::snap_remove(ictx, iter->first.c_str()));
+      RWLock::RLocker l(ictx->owner_lock);
+      EXPECT_EQ(0, librbd::snap_remove(ictx, iter->first.c_str(), false));
     }
 
     TestFixture::TearDown();
@@ -121,7 +123,8 @@ TEST_F(TestInternal, SnapCreateLocksImage) {
     ASSERT_EQ(0, librbd::snap_create(ictx, "snap1", true));
   }
   BOOST_SCOPE_EXIT( (ictx) ) {
-    ASSERT_EQ(0, librbd::snap_remove(ictx, "snap1"));
+    RWLock::RLocker l(ictx->owner_lock);
+    ASSERT_EQ(0, librbd::snap_remove(ictx, "snap1", true));
   } BOOST_SCOPE_EXIT_END;
 
   bool is_owner;
