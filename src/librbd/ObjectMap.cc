@@ -232,7 +232,7 @@ void ObjectMap::rollback(uint64_t snap_id) {
   }
 }
 
-void ObjectMap::snapshot(uint64_t snap_id) {
+void ObjectMap::snapshot_add(uint64_t snap_id) {
   assert(m_image_ctx.snap_lock.is_wlocked());
   if ((m_image_ctx.features & RBD_FEATURE_OBJECT_MAP) == 0) {
     return;
@@ -262,6 +262,15 @@ void ObjectMap::snapshot(uint64_t snap_id) {
 	       << cpp_strerror(r) << dendl;
     invalidate(snap_id);
   }
+}
+
+int ObjectMap::snapshot_remove(uint64_t snap_id) {
+  std::string oid(object_map_name(m_image_ctx.id, snap_id));
+  int r = m_image_ctx.md_ctx.remove(oid);
+  if (r < 0 && r != -ENOENT) {
+    return r;
+  }
+  return 0;
 }
 
 void ObjectMap::aio_resize(uint64_t new_size, uint8_t default_object_state,
