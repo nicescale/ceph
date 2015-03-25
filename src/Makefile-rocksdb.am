@@ -11,7 +11,7 @@ else
         rocksdb/LICENSE \
         rocksdb/Makefile.am \
         rocksdb/PATENTS \
-        rocksdb/README \
+        rocksdb/README.md \
         rocksdb/ROCKSDB_LITE.md \
         rocksdb/build_tools/build_detect_platform \
         rocksdb/build_tools/build_detect_version \
