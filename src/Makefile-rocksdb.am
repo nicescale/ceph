@@ -14,15 +14,14 @@ else
         rocksdb/README.md \
         rocksdb/ROCKSDB_LITE.md \
         rocksdb/build_tools/build_detect_platform \
-        rocksdb/build_tools/build_detect_version \
-        rocksdb/build_tools/fbcode.clang31.sh \
-        rocksdb/build_tools/fbcode.gcc471.sh \
-        rocksdb/build_tools/fbcode.gcc481.sh \
+        rocksdb/build_tools/fbcode_config4.8.1.sh \
+        rocksdb/build_tools/fbcode_config.sh \
         rocksdb/build_tools/format-diff.sh \
-        rocksdb/build_tools/mac-install-gflags.sh \
         rocksdb/build_tools/make_new_version.sh \
+        rocksdb/build_tools/make_package.sh \
         rocksdb/build_tools/regression_build_test.sh \
         rocksdb/build_tools/valgrind_test.sh \
+        rocksdb/build_tools/version.sh \
         rocksdb/configure.ac \
         rocksdb/coverage/coverage_test.sh \
         rocksdb/coverage/parse_gcov_output.py \
