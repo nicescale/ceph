@@ -2862,6 +2862,7 @@ TEST_F(TestLibRBD, UpdateFeatures)
   ASSERT_EQ(-EINVAL, image.update_features(0, true));
   ASSERT_EQ(-EINVAL, image.update_features(RBD_FEATURES_MUTABLE, true));
 
+  ASSERT_EQ(0, image.update_features(RBD_FEATURE_FAST_DIFF, false));
   ASSERT_EQ(0, image.update_features(RBD_FEATURE_OBJECT_MAP, false));
   ASSERT_EQ(0, image.update_features(RBD_FEATURE_EXCLUSIVE_LOCK, false));
 
