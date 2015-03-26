@@ -952,7 +952,11 @@ reprotect_and_return_err:
       }
     }
 
-    if ((features & RBD_FEATURE_OBJECT_MAP) != 0) {
+    if ((features & RBD_FEATURE_FAST_DIFF) != 0 &&
+        (features & RBD_FEATURE_OBJECT_MAP) == 0) {
+      lderr(cct) << "cannot use fast diff without object map" << dendl;
+      goto err_remove_header;
+    } else if ((features & RBD_FEATURE_OBJECT_MAP) != 0) {
       if ((features & RBD_FEATURE_EXCLUSIVE_LOCK) == 0) {
         lderr(cct) << "cannot use object map without exclusive lock" << dendl;
         goto err_remove_header;
@@ -1444,6 +1448,12 @@ reprotect_and_return_err:
           return -EINVAL;
         }
         mask |= RBD_FEATURE_EXCLUSIVE_LOCK;
+      } else if (feature == RBD_FEATURE_FAST_DIFF) {
+        if ((ictx->features & RBD_FEATURE_OBJECT_MAP) == 0) {
+          lderr(cct) << "cannot enable fast diff" << dendl;
+          return -EINVAL;
+        }
+        mask |= (RBD_FEATURE_OBJECT_MAP | RBD_FEATURE_EXCLUSIVE_LOCK);
       }
     } else {
       if (feature == RBD_FEATURE_EXCLUSIVE_LOCK) {
@@ -1453,6 +1463,10 @@ reprotect_and_return_err:
         }
         mask |= RBD_FEATURE_OBJECT_MAP;
       } else if (feature == RBD_FEATURE_OBJECT_MAP) {
+        if ((ictx->features & RBD_FEATURE_FAST_DIFF) != 0) {
+          lderr(cct) << "cannot disable object map" << dendl;
+          return -EINVAL;
+        }
         r = remove_object_map(ictx);
         if (r < 0) {
           lderr(cct) << "failed to remove object map" << dendl;
